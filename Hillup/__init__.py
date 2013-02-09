@@ -56,17 +56,17 @@ def save_slope_aspect(slope, aspect, wkt, xform, fp, tmpdir):
     finally:
         unlink(filename)
 
-def shade_hills(slope, aspect):
+def shade_hills(slope, aspect, diffuse_amt, specular_amt, azimuth):
     """ Convert slope and aspect to 0-1 grayscale with combined light sources.
     """
-    diffuse = shade_hills_onelight(slope, aspect, 315.0, 30.0)
-    specular = shade_hills_onelight(slope, aspect, 315.0, 85.0)
+    diffuse = shade_hills_onelight(slope, aspect, azimuth, 30.0)
+    specular = shade_hills_onelight(slope, aspect, azimuth, 85.0)
     
     # sharpen specular shading on slopes
     specular = numpy.power(specular, 4)
 
-    # 40% diffuse and 60% specular
-    shaded = .4 * diffuse + (.6 * specular)
+    # blend diffuse and specular
+    shaded = diffuse_amt * diffuse + (specular_amt * specular)
     
     return shaded
 

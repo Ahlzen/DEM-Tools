@@ -46,7 +46,7 @@ def get_slope_aspect(source_dir, coord):
         # No matter what happens, keep the local filesystem clean.
         remove(tile_path)
 
-def render_tile(source_dir, coord, min_zoom):
+def render_tile(source_dir, coord, min_zoom, diffuse, specular, azimuth):
     """ Render a single tile.
 
         Looks for two-band slope+aspect TIFF files in the provided source
@@ -74,13 +74,13 @@ def render_tile(source_dir, coord, min_zoom):
             coord = coord.zoomBy(-1).container()
             continue
         else:
-            shaded = shade_hills(slope, aspect)
+            shaded = shade_hills(slope, aspect, diffuse, specular, azimuth)
 
         #
         # Flat ground to 50% gray exactly by way of an exponent.
         #
         flat = numpy.array([pi/2], dtype=float)
-        flat = shade_hills(flat, flat)[0]
+        flat = shade_hills(flat, flat, 0.5, 0.5, azimuth)[0]
         exp = log(0.5) / log(flat)
         
         shaded = numpy.power(shaded, exp)
@@ -112,8 +112,11 @@ class Provider:
 
         Source directory can be a local path, absolute path or URL, and
         will be interpreted relative to the layer's configuration path.
+        
+        Diffuse, specular and azimuth can be specified to customize the
+        look. Diffuse+specular should add up to 1.
     """
-    def __init__(self, layer, source_dir):
+    def __init__(self, layer, source_dir, diffuse=0.4, specular=0.6, azimuth=315.0):
         self.layer = layer
         
         source_dir = urljoin(layer.config.dirpath, source_dir)
@@ -121,6 +124,9 @@ class Provider:
         assert scheme in ('http', 'file', '')
 
         self.source_dir = path if (scheme == '') else '%(scheme)s://%(host)s%(path)s' % locals()
+        self.diffuse = diffuse
+        self.specular = specular
+        self.azimuth = azimuth
     
     def renderTile(self, width, height, srs, coord):
         """
@@ -128,4 +134,5 @@ class Provider:
         if srs != SphericalMercator().srs:
             raise Exception('Tile projection must be spherical mercator, not "%(srs)s"' % locals())
         
-        return render_tile(self.source_dir, coord, 0)
+        return render_tile(self.source_dir, coord, 0, \
+            self.diffuse, self.specular, self.azimuth)
